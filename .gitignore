@@ -1,0 +1,53 @@
+# ==========================================
+# 1. Environment Variables (CRITICAL SECURITY)
+# Needed to prevent your database passwords and 
+# JWT secrets from leaking to GitHub.
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# 2. Dependencies
+# Needed so Git doesn't try to upload the 
+# tens of thousands of files inside node_modules 
+# for both your frontend and backend.
+# ==========================================
+node_modules/
+
+# ==========================================
+# 3. Frontend Build Outputs
+# Needed because Vercel/Render will compile your 
+# code for you. We only want to track source code.
+# ==========================================
+dist/
+dist-ssr/
+*.local
+
+# ==========================================
+# 4. Logs
+# Needed to keep crash reports and debug files 
+# out of your repository.
+# ==========================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# 5. Editor and System Files
+# Needed so your personal VS Code settings and 
+# hidden Mac/Windows files don't clutter the repo.
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureLife Insurance - V11</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto max-w-5xl p-4 min-h-screen">
+
+        <header class="bg-white shadow-md rounded-lg p-6 mb-6 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-blue-600 rounded-full">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800">SecureLife Insurance</h1>
+            </div>
+            <button id="logoutButton" onclick="handleLogout()" class="hidden text-sm font-medium text-blue-600 hover:text-blue-800">Logout</button>
+        </header>
+
+        <main id="app-container" class="bg-white shadow-md rounded-lg p-8">
+
+            <div id="login-page" class="page active">
+                <div class="max-w-md mx-auto">
+                    <h2 class="text-2xl font-semibold text-center mb-6">Member Login</h2>
+                    
+                    <div id="loginErrorMessage" class="hidden p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                        <span class="font-medium">Login Failed!</span> Incorrect username or password.
+                    </div>
+                    
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="mb-4">
+                            <label for="loginEmail" class="block text-sm font-medium text-gray-700 mb-2">Email or User ID</label>
+                            <input type="text" id="loginEmail" placeholder="e.g. user@example.com or POLICY_USER_00001" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <div class="mb-6">
+                            <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                            <input type="password" id="loginPassword" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
+                            Login
+                        </button>
+                    </form>
+                    <p class="text-center text-sm text-gray-600 mt-6">
+                        Don't have an account? 
+                        <a href="#" onclick="navigate('register-page')" class="font-medium text-blue-600 hover:underline">Register here</a>
+                    </p>
+                </div>
+            </div>
+
+            <div id="register-page" class="page">
+                <div class="max-w-md mx-auto">
+                    <h2 class="text-2xl font-semibold text-center mb-6">Register New Account</h2>
+
+                    <div id="registrationSuccessMessage" class="hidden p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
+                        <span class="font-medium">Registration successful!</span> Please log in to your account.
+                        <button onclick="navigate('login-page')" class="mt-2 w-full bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 transition duration-300">
+                            Go to Login
+                        </button>
+                    </div>
+
+                    <form id="registrationForm" onsubmit="handleRegistration(event)">
+                        <div class="mb-4">
+                            <label for="registerEmail" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                            <input type="email" id="registerEmail" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <div class="mb-6">
+                            <label for="registerPassword" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                            <input type="password" id="registerPassword" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
+                            Register
+                        </button>
+                    </form>
+                    <p class="text-center text-sm text-gray-600 mt-6">
+                        Already have an account? 
+                        <a href="#" onclick="navigate('login-page')" class="font-medium text-blue-600 hover:underline">Login here</a>
+                    </p>
+                </div>
+            </div>
+
+            <div id="personal-details-page" class="page">
+                <h2 class="text-2xl font-semibold mb-2">Step 1: Personal Details</h2>
+                <p class="text-gray-600 mb-6">Tell us about yourself and your family.</p>
+                <div class="progress-bar-container mb-8"><div class="progress-bar" style="width: 25%;"></div></div>
+                
+                <form id="personalDetailsForm" onsubmit="submitPersonalDetails(event)">
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Proposer Details (You)</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="proposerName" class="block text-sm font-medium text-gray-700">Full Name</label>
+                                <input type="text" id="proposerName" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                            </div>
+                            <div>
+                                <label for="proposerDob" class="block text-sm font-medium text-gray-700">Date of Birth</label>
+                                <input type="date" id="proposerDob" placeholder="YYYY-MM-DD" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required onchange="calculateAge('proposerDob', 'proposerAge')">
+                                <p class="text-xs text-gray-500 mt-1">You can type the date (YYYY-MM-DD) or use the calendar.</p>
+                                <input type="hidden" id="proposerAge">
+                            </div>
+                            <div>
+                                <label for="proposerRelationship" class="block text-sm font-medium text-gray-700">Relationship</label>
+                                <select id="proposerRelationship" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm bg-gray-200" disabled>
+                                    <option value="Applicant" selected>Applicant</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Dependents (Optional)</h3>
+                            <button type="button" onclick="addDependent()" class="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600">
+                                Add Dependent
+                            </button>
+                        </div>
+                        <div id="dependentsContainer" class="space-y-4">
+                            </div>
+                    </div>
+                    
+                    <div class="text-right mt-8">
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+                            Next: Select Plan
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="plan-details-page" class="page">
+                <h2 class="text-2xl font-semibold mb-2">Step 2: Choose Your Plan</h2>
+                <p class="text-gray-600 mb-6">Select a product and insurer that fits your needs.</p>
+                <div class="progress-bar-container mb-8"><div class="progress-bar" style="width: 50%;"></div></div>
+
+                <form id="planDetailsForm" onsubmit="submitPlanDetails(event)">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div class="space-y-2">
+                            <h3 class="text-lg font-semibold text-gray-800">Select Product</h3>
+                            <select id="product-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="HealthGuard Plus">HealthGuard Plus</option>
+                                <option value="HealthGuard Basic">HealthGuard Basic</option>
+                                <option value="LifeSecure Gold">LifeSecure Gold</option>
+                                <option value="LifeSecure Standard">LifeSecure Standard</option>
+                                <option value="TravelSafe World">TravelSafe World</option>
+                                <option value="CriticalCare 360">CriticalCare 360</option>
+                                <option value="FamilyFirst Plan">FamilyFirst Plan</option>
+                                <option value="SeniorCitizen Shield">SeniorCitizen Shield</option>
+                            </select>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <h3 class="text-lg font-semibold text-gray-800">Select Insurer</h3>
+                            <select id="insurer-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="SecureLife">SecureLife</option>
+                                <option value="Pioneer Mutual">Pioneer Mutual</option>
+                                <option value="Aegis Alliance">Aegis Alliance</option>
+                                <option value="Vertex Insurance">Vertex Insurance</option>
+                                <option value="Guardian Health">Guardian Health</option>
+                                <option value="NewHorizon Life">NewHorizon Life</option>
+                                <option value="Crestview Financial">Crestview Financial</option>
+                                <option value="Anvil Assurance">Anvil Assurance</option>
+                            </select>
+                        </div>
+
+                        <div class="space-y-2">
+                            <h3 class="text-lg font-semibold text-gray-800">Policy Start Date</h3>
+                            <input type="date" id="policyStartDate" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                            <p class="text-xs text-gray-500 mt-1">You can type the date (YYYY-MM-DD) or use the calendar.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-8">
+                        <button type="button" onclick="navigate('personal-details-page')" class="text-sm font-medium text-gray-600 hover:text-gray-800">
+                            &larr; Back to Personal Details
+                        </button>
+                        <button type="submit" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+                            Next: Quote Summary
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="quote-summary-page" class="page">
+                <h2 class="text-2xl font-semibold mb-2">Step 3: Quote Summary</h2>
+                <p class="text-gray-600 mb-6">Review your plan and pricing details.</p>
+                <div class="progress-bar-container mb-8"><div class="progress-bar" style="width: 75%;"></div></div>
+
+                <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                    <h3 class="text-xl font-semibold mb-4">Your Plan</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                        <div>
+                            <span class="text-sm font-medium text-gray-500">Product</span>
+                            <p id="summaryProduct" class="text-lg font-semibold text-gray-800"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-gray-500">Insurer</span>
+                            <p id="summaryInsurer" class="text-lg font-semibold text-gray-800"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-gray-500">Policy Start Date</span>
+                            <p id="summaryStartDate" class="text-lg font-semibold text-gray-800"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-gray-500">Proposer</span>
+                            <p id="summaryProposerName" class="text-lg text-gray-800"></p>
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-gray-500">Dependents</span>
+                            <p id="summaryDependentCount" class="text-lg text-gray-800"></p>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-xl font-semibold mb-4 border-t pt-4">Pricing</h3>
+                    <div class="space-y-2 max-w-sm ml-auto">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Base Premium</span>
+                            <span id="summaryBasePremium" class="font-medium text-gray-800"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Taxes & Fees (18%)</span>
+                            <span id="summaryTaxes" class="font-medium text-gray-800"></span>
+                        </div>
+                        <div class="flex justify-between text-xl font-semibold border-t pt-2 mt-2">
+                            <span class="text-gray-800">Total Premium</span>
+                            <span id="summaryTotalPremium" class="text-blue-600"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mt-8">
+                    <button type="button" onclick="navigate('plan-details-page')" class="text-sm font-medium text-gray-600 hover:text-gray-800">
+                        &larr; Back to Plan Details
+                    </button>
+                    <button type="button" onclick="submitQuote()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+                        Next: Buy & KYC
+                    </button>
+                </div>
+            </div>
+
+            <div id="buy-page" class="page">
+                <h2 class="text-2xl font-semibold mb-2">Step 4: Complete Your Purchase</h2>
+                <p class="text-gray-600 mb-6">Upload KYC documents for all members aged 10 and over.</p>
+                <div class="progress-bar-container mb-8"><div class="progress-bar" style="width: 90%;"></div></div>
+
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">KYC Status</h3>
+                    <div id="kycListContainer" class="space-y-3">
+                        </div>
+                </div>
+
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Payment Method</h3>
+                    <div class="flex space-x-4">
+                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:border-blue-500">
+                            <input type="radio" name="payment" value="credit_card" class="mr-2" checked>
+                            Credit Card
+                        </label>
+                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:border-blue-500">
+                            <input type="radio" name="payment" value="net_banking" class="mr-2">
+                            Net Banking
+                        </label>
+                        <label class="flex items-center p-4 border rounded-lg cursor-pointer hover:border-blue-500">
+                            <input type="radio" name="payment" value="upi" class="mr-2">
+                            UPI
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mt-8">
+                    <button type="button" onclick="navigate('quote-summary-page')" class="text-sm font-medium text-gray-600 hover:text-gray-800">
+                        &larr; Back to Quote Summary
+                    </button>
+                    <button id="buyNowButton" type="button" onclick="submitPurchase()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+                        Buy Now
+                    </button>
+                </div>
+            </div>
+
+            <div id="confirmation-page" class="page">
+                <div class="text-center py-12">
+                    <div class="inline-block bg-green-100 p-4 rounded-full mb-6">
+                        <svg class="w-16 h-16 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </div>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">Purchase Complete!</h2>
+                    <p class="text-lg text-gray-600 mb-4">Your policy is now <span id="finalPolicyStatus" class="font-semibold"></span>.</p>
+                    <p class="text-gray-600">Your Policy Number is:</p>
+                    <p id="policyNumberDisplay" class="text-2xl font-mono text-blue-600 mb-8"></p>
+                    
+                    <div id="pendedMessage" class="hidden max-w-md mx-auto p-4 mb-6 bg-yellow-100 border border-yellow-300 rounded-lg">
+                        <p class="text-sm text-yellow-800">Your policy is **Pended** until you complete your KYC. You can complete this from your member dashboard.</p>
+                    </div>
+
+                    <button type="button" onclick="goToDashboard()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+                        Go to My Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <div id="dashboard-page" class="page">
+                </div>
+
+            <div id="admin-dashboard-page" class="page">
+                </div>
+
+        </main>
+    </div>
+
+    <div id="kycModal">
+        <div class="mx-auto mt-20 p-6 bg-white max-w-lg rounded-lg shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-semibold">Upload KYC Documents</h3>
+                <button onclick="closeKycModal()" class="text-gray-500 hover:text-gray-800">&times;</button>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Uploading for: <span id="kycMemberName" class="font-medium"></span></p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Proof of Identity (POI)</label>
+                    <input type="file" id="poiFile" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Proof of Address (POA)</label>
+                    <input type="file" id="poaFile" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                </div>
+            </div>
+            <div class="text-right mt-6">
+                <button onclick="closeKycModal()" type="button" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 mr-2">
+                    Cancel
+                </button>
+                <button id="kycSubmitButton" type="button" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700">
+                    Upload
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="messageModal">
+        <div class="mx-auto mt-20 p-6 bg-white max-w-md rounded-lg shadow-xl text-center">
+            <h3 id="messageTitle" class="text-xl font-semibold mb-4"></h3>
+            <p id="messageBody" class="text-gray-600 mb-6"></p>
+            <button onclick="closeMessageModal()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <div id="loadingSpinner" class="hidden fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-[2000]">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+
+</body>
+</html>
