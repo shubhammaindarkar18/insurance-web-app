@@ -1,7 +1,10 @@
 // src/app.js
 import { apiFetch, auth } from './api.js';
 
+
 // --- Global State ---
+let dependentCounter = 1; // ADD THIS LINE
+
 let appState = {
     proposer: null,
     dependents: [],
@@ -153,6 +156,7 @@ async function handleRegistration(event) {
 }
 
 function handleLogout() {
+    dependentCounter = 1; // ADD THIS LINE
     auth.token = null;
     auth.user = null;
     localStorage.removeItem('authToken');
@@ -210,23 +214,23 @@ function startNewApplication() {
 // --- Step 1: Personal Details ---
 function addDependent() {
     const container = document.getElementById('dependentsContainer');
-    const dependentId = `dep-${Date.now()}`;
+    const dependentId = `dep-${dependentCounter++}`;
     
     const dependentHtml = `
-        <div id="${dependentId}" class="p-4 border border-gray-300 rounded-lg">
+        <div id="${dependentId}" data-testid="dependent-row-${dependentId}" class="p-4 border border-gray-300 rounded-lg">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="md:col-span-2">
                     <label for="${dependentId}-name" class="block text-sm font-medium text-gray-700">Full Name</label>
-                    <input type="text" id="${dependentId}-name" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
+                    <input type="text" id="${dependentId}-name" name="${dependentId}-name" data-testid="dependent-name-input" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
                 </div>
                 <div>
                     <label for="${dependentId}-dob" class="block text-sm font-medium text-gray-700">Date of Birth</label>
-                    <input type="date" id="${dependentId}-dob" placeholder="YYYY-MM-DD" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required onchange="calculateAge('${dependentId}-dob', '${dependentId}-age')">
-                    <input type="hidden" id="${dependentId}-age">
+                    <input type="date" id="${dependentId}-dob" name="${dependentId}-dob" data-testid="dependent-dob-input" placeholder="YYYY-MM-DD" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required onchange="calculateAge('${dependentId}-dob', '${dependentId}-age')">
+                    <input type="hidden" id="${dependentId}-age" name="${dependentId}-age" data-testid="dependent-age-hidden">
                 </div>
                 <div>
                     <label for="${dependentId}-relationship" class="block text-sm font-medium text-gray-700">Relationship</label>
-                    <select id="${dependentId}-relationship" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
+                    <select id="${dependentId}-relationship" name="${dependentId}-relationship" data-testid="dependent-relationship-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required>
                         <option value="">Select...</option>
                         <option value="Wife">Wife</option>
                         <option value="Son">Son</option>
@@ -237,7 +241,7 @@ function addDependent() {
                 </div>
             </div>
             <div class="text-right mt-2">
-                <button type="button" onclick="removeDependent('${dependentId}')" class="px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-md hover:bg-red-600">
+                <button type="button" id="btn-remove-${dependentId}" data-testid="remove-dependent-button" onclick="removeDependent('${dependentId}')" class="px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-md hover:bg-red-600">
                     Remove
                 </button>
             </div>
@@ -247,9 +251,16 @@ function addDependent() {
 }
 
 function removeDependent(dependentId) {
+    // 1. Remove the dependent row from the screen
     document.getElementById(dependentId).remove();
+    
+    // 2. Check how many dependents are left
+    const container = document.getElementById('dependentsContainer');
+    if (container.children.length === 0) {
+        // 3. If the container is completely empty, reset the counter!
+        dependentCounter = 1; 
+    }
 }
-
 async function submitPersonalDetails(event) {
     event.preventDefault();
     
@@ -380,10 +391,11 @@ function renderKycList(containerId, members, kycStatusMap) {
                 statusText = 'Exempt';
                 buttonHtml = `<span class="text-sm font-medium text-gray-700">(Under 10 years)</span>`;
                 break;
-            default:
+            default: // 'Outstanding'
                 statusClass = 'text-yellow-600 bg-yellow-100';
                 statusText = 'Outstanding';
-                buttonHtml = `<button onclick="openKycModal('${memberId}', '${memberName}')" class="px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600">Upload</button>`;
+                // Added id and data-testid specific to the memberId
+                buttonHtml = `<button id="btn-upload-kyc-${memberId}" data-testid="upload-kyc-button-${memberId}" onclick="openKycModal('${memberId}', '${memberName}')" class="px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded-md hover:bg-blue-600">Upload</button>`;
         }
         
         const kycItemHtml = `
@@ -508,7 +520,7 @@ function goToDashboard() {
 // --- Member Dashboard ---
 async function loadMemberDashboard() {
     try {
-        const data = await fetchWithUI('/dashboard');
+        const data = await apiFetch('/dashboard');
         const { policy, claims } = data;
         appState.policy = policy;
 
@@ -516,9 +528,9 @@ async function loadMemberDashboard() {
         
         if (!policy) {
             dashboardContainer.innerHTML = `
-                <h2 class="text-2xl font-semibold mb-4">Welcome, ${auth.user.email}</h2>
-                <p class="text-gray-600 mb-6">You do not have any active policies.</p>
-                <button onclick="startNewApplication()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+                <h2 class="text-2xl font-semibold mb-4" data-testid="dashboard-welcome-header">Welcome, ${auth.user.email}</h2>
+                <p class="text-gray-600 mb-6" data-testid="dashboard-no-policy-text">You do not have any active policies.</p>
+                <button id="btn-start-new-app" data-testid="start-new-app-button" onclick="startNewApplication()" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
                     Start a New Application
                 </button>
             `;
@@ -545,11 +557,11 @@ async function loadMemberDashboard() {
             }
 
             dashboardContainer.innerHTML = `
-                <h2 class="text-2xl font-semibold mb-4">Welcome, ${auth.user.email}</h2>
-                <div class="p-6 mb-6 bg-blue-100 border border-blue-300 rounded-lg">
+                <h2 class="text-2xl font-semibold mb-4" data-testid="dashboard-welcome-header">Welcome, ${auth.user.email}</h2>
+                <div class="p-6 mb-6 bg-blue-100 border border-blue-300 rounded-lg" data-testid="draft-policy-container">
                     <h3 class="text-xl font-semibold text-blue-800">You have an application in progress.</h3>
-                    <p class="text-blue-700 mt-2 mb-4">Your application status is: <strong>Draft</strong>.</p>
-                    <button onclick="resumeApplication()" class="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
+                    <p class="text-blue-700 mt-2 mb-4">Your application status is: <strong data-testid="draft-status-text">Draft</strong>.</p>
+                    <button id="btn-resume-app" data-testid="resume-app-button" onclick="resumeApplication()" class="px-5 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">
                         Resume Application
                     </button>
                 </div>
@@ -562,20 +574,20 @@ async function loadMemberDashboard() {
             });
             
             dashboardContainer.innerHTML = `
-                <h2 class="text-2xl font-semibold mb-2">My Dashboard</h2>
+                <h2 class="text-2xl font-semibold mb-2" data-testid="dashboard-welcome-header">My Dashboard</h2>
                 <p class="text-gray-600 mb-6">Welcome, ${auth.user.email}!</p>
                 
-                <div class="p-6 mb-6 bg-yellow-100 border border-yellow-300 rounded-lg">
+                <div class="p-6 mb-6 bg-yellow-100 border border-yellow-300 rounded-lg" data-testid="pended-policy-container">
                     <h3 class="text-xl font-semibold text-yellow-800">Your Policy is Pended</h3>
-                    <p class="text-yellow-700 mt-2 mb-4">Your policy (<span class="font-medium">${policy.POLICY_NUMBER}</span>) is pending until all KYC documents are confirmed.</p>
-                    <button onclick="activatePendedPolicy(${policy.POLICY_ID})" class="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">
+                    <p class="text-yellow-700 mt-2 mb-4">Your policy (<span class="font-medium" data-testid="pended-policy-number">${policy.POLICY_NUMBER}</span>) is pending until all KYC documents are confirmed.</p>
+                    <button id="btn-activate-pended" data-testid="activate-pended-button" onclick="activatePendedPolicy(${policy.POLICY_ID})" class="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700">
                         I've Uploaded All Documents, Activate Now
                     </button>
                 </div>
 
                 <div class="mb-8">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">Individual KYC Status</h3>
-                    <div id="pendedKycListContainer" class="space-y-3">
+                    <div id="pendedKycListContainer" data-testid="pended-kyc-list-container" class="space-y-3">
                         </div>
                 </div>
             `;
@@ -584,32 +596,32 @@ async function loadMemberDashboard() {
         } 
         else {
             dashboardContainer.innerHTML = `
-                <h2 class="text-2xl font-semibold mb-6">My Dashboard</h2>
+                <h2 class="text-2xl font-semibold mb-6" data-testid="dashboard-welcome-header">My Dashboard</h2>
                 <p class="text-gray-600 mb-6">Welcome, ${auth.user.email}!</p>
                 
-                <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8">
+                <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8" data-testid="active-policy-container">
                     <div class="flex justify-between items-start">
                         <div>
-                            <h3 class="text-xl font-semibold text-gray-800">${policy.PRODUCT_NAME}</h3>
-                            <p class="text-gray-600">Policy: <span class="font-medium text-blue-600">${policy.POLICY_NUMBER}</span></p>
+                            <h3 class="text-xl font-semibold text-gray-800" data-testid="active-policy-product">${policy.PRODUCT_NAME}</h3>
+                            <p class="text-gray-600">Policy: <span class="font-medium text-blue-600" data-testid="active-policy-number">${policy.POLICY_NUMBER}</span></p>
                         </div>
-                        <span class="px-3 py-1 text-sm font-semibold rounded-full ${policy.STATUS === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                        <span data-testid="active-policy-status" class="px-3 py-1 text-sm font-semibold rounded-full ${policy.STATUS === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
                             ${policy.STATUS}
                         </span>
                     </div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                        <div><span class="text-sm text-gray-500">Insurer</span><p class="font-medium">${policy.INSURER_NAME}</p></div>
-                        <div><span class="text-sm text-gray-500">Total Premium</span><p class="font-medium">$${policy.PREMIUM.toFixed(2)}</p></div>
-                        <div><span class="text-sm text-gray-500">Start Date</span><p class="font-medium">${new Date(policy.POLICY_START_DATE).toLocaleDateString()}</p></div>
+                        <div><span class="text-sm text-gray-500">Insurer</span><p class="font-medium" data-testid="active-policy-insurer">${policy.INSURER_NAME}</p></div>
+                        <div><span class="text-sm text-gray-500">Total Premium</span><p class="font-medium" data-testid="active-policy-premium">$${policy.PREMIUM.toFixed(2)}</p></div>
+                        <div><span class="text-sm text-gray-500">Start Date</span><p class="font-medium" data-testid="active-policy-start-date">${new Date(policy.POLICY_START_DATE).toLocaleDateString()}</p></div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-800 mb-4">Covered Members</h3>
-                        <div class="space-y-3">
+                        <div class="space-y-3" data-testid="covered-members-list">
                             ${policy.members.map(m => `
-                                <div class="flex justify-between items-center p-3 bg-white border rounded-lg">
+                                <div class="flex justify-between items-center p-3 bg-white border rounded-lg" data-testid="member-row-${m.NAME.replace(/\s+/g, '-')}">
                                     <p class="font-medium text-gray-700">${m.NAME}</p>
                                     <span class="text-sm text-gray-500">${m.RELATIONSHIP}</span>
                                 </div>
@@ -620,17 +632,17 @@ async function loadMemberDashboard() {
                     <div>
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-semibold text-gray-800">My Claims</h3>
-                            <button onclick="renderClaimForm()" class="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600 ${policy.STATUS !== 'Active' ? 'hidden' : ''}">
+                            <button id="btn-file-claim" data-testid="file-new-claim-button" onclick="renderClaimForm()" class="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600 ${policy.STATUS !== 'Active' ? 'hidden' : ''}">
                                 File New Claim
                             </button>
                         </div>
-                        <div id="claimsContainer" class="space-y-3">
-                            ${claims.length === 0 ? '<p class="text-sm text-gray-500">No claims filed yet.</p>' : 
+                        <div id="claimsContainer" data-testid="claims-container" class="space-y-3">
+                            ${claims.length === 0 ? '<p class="text-sm text-gray-500" data-testid="no-claims-text">No claims filed yet.</p>' : 
                               claims.map(c => `
-                                <div class="p-3 bg-white border rounded-lg">
+                                <div class="p-3 bg-white border rounded-lg" data-testid="claim-row-${c.CLAIM_ID}">
                                     <div class="flex justify-between items-center">
                                         <p class="font-medium text-gray-700">${c.CLAIM_ID} - ${c.MEMBER_NAME}</p>
-                                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${getClaimStatusClass(c.STATUS)}">
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${getClaimStatusClass(c.STATUS)}" data-testid="claim-status-${c.CLAIM_ID}">
                                             ${c.STATUS}
                                         </span>
                                     </div>
@@ -695,6 +707,13 @@ function resumeApplication() {
         container.insertAdjacentHTML('beforeend', dependentHtml);
     });
     
+    // ADD THIS NEW BLOCK: 
+    // Sync the counter so new dependents continue the sequence
+    if (appState.dependents.length > 0) {
+        const maxId = Math.max(...appState.dependents.map(d => parseInt(d.CLIENT_SIDE_ID.replace('dep-', '')) || 0));
+        dependentCounter = maxId + 1;
+    }
+
     if (!appState.plan.product) {
         navigate('plan-details-page');
     } else {
@@ -748,24 +767,24 @@ function renderClaimForm() {
     const membersOptions = appState.policy.members.map(m => `<option value="${m.NAME}">${m.NAME}</option>`).join('');
     
     container.innerHTML = `
-        <div class="p-4 bg-gray-50 border rounded-lg">
+        <div class="p-4 bg-gray-50 border rounded-lg" data-testid="new-claim-form-container">
             <h4 class="font-semibold mb-4">New Claim Details</h4>
-            <form id="claimForm" onsubmit="submitClaim(event)">
+            <form id="claimForm" data-testid="new-claim-form" onsubmit="submitClaim(event)">
                 <div class="mb-4">
                     <label for="claimMember" class="block text-sm font-medium text-gray-700">For Member</label>
-                    <select id="claimMember" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    <select id="claimMember" name="claimMember" data-testid="claim-member-select" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
                         ${membersOptions}
                     </select>
                 </div>
                 <div class="mb-4">
                     <label for="claimDetails" class="block text-sm font-medium text-gray-700">Claim Details</label>
-                    <textarea id="claimDetails" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required></textarea>
+                    <textarea id="claimDetails" name="claimDetails" data-testid="claim-details-textarea" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" required></textarea>
                 </div>
                 <div class="flex justify-end space-x-2">
-                    <button type="button" onclick="loadMemberDashboard()" class="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300">
+                    <button type="button" id="btn-cancel-claim" data-testid="cancel-claim-button" onclick="loadMemberDashboard()" class="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300">
                         Cancel
                     </button>
-                    <button type="submit" class="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600">
+                    <button type="submit" id="btn-submit-claim" data-testid="submit-claim-button" class="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600">
                         Submit Claim
                     </button>
                 </div>
