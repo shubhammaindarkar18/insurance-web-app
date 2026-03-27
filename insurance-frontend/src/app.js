@@ -1,4 +1,6 @@
 // src/app.js
+import { jsPDF } from "jspdf";
+import autoTable from 'jspdf-autotable';
 import { apiFetch, auth } from './api.js';
 
 
@@ -596,8 +598,16 @@ async function loadMemberDashboard() {
         } 
         else {
             dashboardContainer.innerHTML = `
-                <h2 class="text-2xl font-semibold mb-6" data-testid="dashboard-welcome-header">My Dashboard</h2>
-                <p class="text-gray-600 mb-6">Welcome, ${auth.user.email}!</p>
+               <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 class="text-2xl font-semibold" data-testid="dashboard-welcome-header">My Dashboard</h2>
+                                <p class="text-gray-600 mt-2">Welcome, ${auth.user.email}!</p>
+                            </div>
+                            <button id="btn-download-policy" data-testid="download-policy-button" onclick="downloadPolicyPDF()" class="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 text-sm font-semibold rounded-md hover:bg-blue-100 flex items-center transition-colors">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                Download Policy
+                            </button>
+                        </div>
                 
                 <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-8" data-testid="active-policy-container">
                     <div class="flex justify-between items-start">
@@ -997,8 +1007,99 @@ async function updatePolicyStatus(policyId, status) {
     }
 }
 
+// --- PDF Generation Logic ---
+function downloadPolicyPDF() {
+    const policy = appState.policy;
+    if (!policy) return;
+
+    // Create a new PDF document (A4 size)
+    const doc = new jsPDF();
+    
+    // --- 1. CORPORATE LETTERHEAD ---
+    // Blue background band
+    doc.setFillColor(37, 99, 235); // Matches Tailwind blue-600
+    doc.rect(0, 0, 210, 35, 'F');
+    
+    // SecureLife Name and "Logo" text
+    doc.setTextColor(255, 255, 255); // White text
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.text("SecureLife Insurance", 14, 22);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Policy Schedule & Certificate", 14, 28);
+    
+    // --- 2. POLICY DETAILS ---
+    doc.setTextColor(50, 50, 50);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Plan Summary", 14, 50);
+    
+    // Left Column
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Policy Number:`, 14, 60);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${policy.POLICY_NUMBER}`, 45, 60);
+    
+    doc.setFont("helvetica", "normal");
+    doc.text(`Status:`, 14, 68);
+    doc.text(`${policy.STATUS}`, 45, 68);
+    
+    doc.text(`Start Date:`, 14, 76);
+    doc.text(`${new Date(policy.POLICY_START_DATE).toLocaleDateString()}`, 45, 76);
+    
+    // Right Column
+    doc.text(`Product:`, 110, 60);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${policy.PRODUCT_NAME}`, 145, 60);
+    
+    doc.setFont("helvetica", "normal");
+    doc.text(`Insurer:`, 110, 68);
+    doc.text(`${policy.INSURER_NAME}`, 145, 68);
+    
+    doc.text(`Total Premium:`, 110, 76);
+    doc.text(`$${policy.PREMIUM.toFixed(2)}`, 145, 76);
+    
+    // --- 3. COVERED MEMBERS TABLE ---
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Covered Members", 14, 95);
+    
+    // Map the DB members array into rows for the PDF table
+    const tableData = policy.members.map(m => [
+        m.NAME,
+        m.RELATIONSHIP,
+        m.AGE ? m.AGE.toString() : 'N/A',
+        m.KYC_STATUS
+    ]);
+    
+    // Generate the table
+   autoTable(doc, {
+        startY: 100,
+        head: [['Full Name', 'Relationship', 'Age', 'KYC Status']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] },
+        styles: { font: "helvetica", fontSize: 10 },
+        alternateRowStyles: { fillColor: [245, 247, 250] }
+    });
+    
+    // --- 4. FOOTER ---
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFontSize(9);
+    doc.setTextColor(150, 150, 150);
+    doc.text("This is an electronically generated document and does not require a physical signature.", 14, pageHeight - 15);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, pageHeight - 10);
+    
+    // Trigger the actual file download in the browser
+    doc.save(`SecureLife_Policy_${policy.POLICY_NUMBER}.pdf`);
+}
+
 // --- GLOBAL BINDINGS ---
 // Bind everything to the window object so inline HTML onclick handlers still work
+window.downloadPolicyPDF = downloadPolicyPDF;
 window.navigate = navigate;
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
