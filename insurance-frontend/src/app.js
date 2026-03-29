@@ -263,17 +263,20 @@ function removeDependent(dependentId) {
         dependentCounter = 1; 
     }
 }
+
 async function submitPersonalDetails(event) {
     event.preventDefault();
     
+    // 1. Get Proposer
     appState.proposer = {
         id: 'proposer',
         name: document.getElementById('proposerName').value,
         dob: document.getElementById('proposerDob').value,
         age: parseInt(document.getElementById('proposerAge').value),
-        relationship: document.getElementById('proposerRelationship').value 
+        relationship: document.getElementById('proposerRelationship').value
     };
 
+    // 2. Get Dependents
     appState.dependents = [];
     const dependentElements = document.querySelectorAll('#dependentsContainer > div');
     dependentElements.forEach(dep => {
@@ -287,12 +290,21 @@ async function submitPersonalDetails(event) {
         });
     });
 
+    // 3. Calculate KYC Status (Preserve existing 'Confirmed' status)
+    const existingKyc = { ...appState.kyc }; // Remember the statuses from the DB
     appState.kyc = {};
     const allMembers = [appState.proposer, ...appState.dependents];
     allMembers.forEach(m => {
-        appState.kyc[m.id] = (m.age >= 10) ? 'Outstanding' : 'Exempt';
+       //If they already proved their identity, keep it Confirmed!
+        if (existingKyc[m.id] === 'Confirmed') {
+            appState.kyc[m.id] = 'Confirmed';
+        } else {
+            // Otherwise, calculate normally based on age
+            appState.kyc[m.id] = (m.age >= 10) ? 'Outstanding' : 'Exempt';
+        }
     });
     
+    // 4. Save to DB (API Call)
     try {
         const dataToSave = {
             proposer: appState.proposer,
@@ -300,14 +312,26 @@ async function submitPersonalDetails(event) {
             kyc: appState.kyc,
         };
 
-        const result = await fetchWithUI('/policy', {
-            method: 'POST',
+        // --- NEW LOGIC: Check if we are updating an existing draft ---
+        let endpoint = '/policy';
+        let method = 'POST';
+
+        if (appState.policyId) {
+            endpoint = `/policyUpdate/${appState.policyId}`;
+            method = 'PUT'; // Use the new PUT route we just created
+        }
+
+        // --- Use our dynamic endpoint and method ---
+        const result = await apiFetch(endpoint, {
+            method: method,
             body: dataToSave
         });
 
-        appState.policyId = result.policyId; 
-        console.log('Policy draft created with ID:', appState.policyId);
+        // Save the DB policy ID (if it's a new POST, result will have it. If PUT, we keep existing)
+        appState.policyId = result.policyId || appState.policyId; 
+        console.log('Policy draft saved with ID:', appState.policyId);
         
+        // Set default start date for next page
         document.getElementById('policyStartDate').value = new Date().toISOString().split('T')[0];
         
         navigate('plan-details-page');

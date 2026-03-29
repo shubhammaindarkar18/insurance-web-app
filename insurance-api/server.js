@@ -17,6 +17,11 @@ types.setTypeParser(1700, function(val) {
     return parseFloat(val);
 });
 
+// PostgreSQL OID 1082 is the standard 'DATE' type
+types.setTypeParser(1082, function(stringValue) {
+    return stringValue; // Forces it to stay 'YYYY-MM-DD' as a plain string
+});
+
 // --- Configuration ---
 const app = express();
 
@@ -202,6 +207,53 @@ app.post('/api/policy', verifyToken, async (req, res) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error("Error creating policy:", err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        client.release();
+    }
+});
+
+
+/*
+ * [STEP 1 UPDATE] Update existing policy draft members
+ * PUT /api/policyUpdate/:policyId
+ */
+app.put('/api/policyUpdate/:policyId', verifyToken, async (req, res) => {
+    const { policyId } = req.params;
+    const { proposer, dependents, kyc } = req.body;
+    const userId = req.user.id;
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Verify policy belongs to user and is still a Draft
+        const checkRes = await client.query(`SELECT status FROM POLICIES WHERE policy_id = $1 AND user_id = $2`, [policyId, userId]);
+        if (checkRes.rows.length === 0 || checkRes.rows[0].status !== 'Draft') {
+            throw new Error("Invalid policy or policy is no longer a draft.");
+        }
+
+        // 2. Clear out the old draft members
+        await client.query(`DELETE FROM POLICY_MEMBERS WHERE policy_id = $1`, [policyId]);
+
+        // 3. Insert the newly updated members
+        const allMembers = [proposer, ...dependents];
+        for (const m of allMembers) {
+            const memberSql = `INSERT INTO POLICY_MEMBERS (policy_id, client_side_id, name, dob, age, relationship, kyc_status)
+                               VALUES ($1, $2, $3, $4, $5, $6, $7)`;
+            await client.query(memberSql, [policyId, m.id, m.name, m.dob, m.age, m.relationship, kyc[m.id]]);
+        }
+
+        // 4. Update the last_updated timestamp on the policy
+        await client.query(`UPDATE POLICIES SET last_updated = CURRENT_TIMESTAMP WHERE policy_id = $1`, [policyId]);
+
+        await client.query('COMMIT');
+        console.log(`Updated draft members for policy: ${policyId}`);
+        res.json({ policyId: policyId, message: "Policy draft updated" });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error("Error updating policy draft:", err);
         res.status(500).json({ error: err.message });
     } finally {
         client.release();
