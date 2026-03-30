@@ -400,12 +400,33 @@ app.put('/api/kyc/:clientSideId', verifyToken, async (req, res) => {
  */
 app.post('/api/policy/:policyId/purchase', verifyToken, async (req, res) => {
     const { policyId } = req.params;
-    const { allKycDone, policyStartDate } = req.body; 
+    let { allKycDone, policyStartDate } = req.body; 
 
-    // ADD THIS LINE: Backend safety net
-    if (!policyStartDate || policyStartDate === "") {
-        policyStartDate = new Date().toISOString().split('T')[0]; 
+    // BETTER BACKEND SAFETY: Normalize ANY date format to YYYY-MM-DD
+if (policyStartDate) {
+    try {
+        // This converts "30/03/2026" or any other string into a standard Date object
+        const parts = policyStartDate.includes('/') ? policyStartDate.split('/') : null;
+        let dateObj;
+
+        if (parts && parts[0].length === 2) {
+            // If it looks like DD/MM/YYYY, manually fix the order for the Date constructor
+            dateObj = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        } else {
+            dateObj = new Date(policyStartDate);
+        }
+
+        // Final output: always "2026-03-30"
+        policyStartDate = dateObj.toISOString().split('T')[0];
+    } catch (e) {
+        // Fallback to today if the date is totally garbled
+        policyStartDate = new Date().toISOString().split('T')[0];
     }
+} else {
+    // Fallback if missing
+    policyStartDate = new Date().toISOString().split('T')[0];
+}
+
 
     const client = await pool.connect();
     try {
