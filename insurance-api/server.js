@@ -222,6 +222,52 @@ app.post('/api/policy', verifyToken, async (req, res) => {
  * [STEP 1 UPDATE] Update existing policy draft members
  * PUT /api/policyUpdate/:policyId
  */
+// app.put('/api/policyUpdate/:policyId', verifyToken, async (req, res) => {
+//     const { policyId } = req.params;
+//     const { proposer, dependents, kyc } = req.body;
+//     const userId = req.user.id;
+
+//     const client = await pool.connect();
+//     try {
+//         await client.query('BEGIN');
+
+//         // 1. Verify policy belongs to user and is still a Draft
+//         const checkRes = await client.query(`SELECT status FROM POLICIES WHERE policy_id = $1 AND user_id = $2`, [policyId, userId]);
+//         if (checkRes.rows.length === 0 || checkRes.rows[0].status !== 'Draft') {
+//             throw new Error("Invalid policy or policy is no longer a draft.");
+//         }
+
+//         // 2. Clear out the old draft members
+//         await client.query(`DELETE FROM POLICY_MEMBERS WHERE policy_id = $1`, [policyId]);
+
+//         // 3. Insert the newly updated members
+//         const allMembers = [proposer, ...dependents];
+//         for (const m of allMembers) {
+//             const memberSql = `INSERT INTO POLICY_MEMBERS (policy_id, client_side_id, name, dob, age, relationship, kyc_status)
+//                                VALUES ($1, $2, $3, $4, $5, $6, $7)`;
+//             await client.query(memberSql, [policyId, m.id, m.name, m.dob, m.age, m.relationship, kyc[m.id]]);
+//         }
+
+//         // 4. Update the last_updated timestamp on the policy
+//         await client.query(`UPDATE POLICIES SET last_updated = CURRENT_TIMESTAMP WHERE policy_id = $1`, [policyId]);
+
+//         await client.query('COMMIT');
+//         console.log(`Updated draft members for policy: ${policyId}`);
+//         res.json({ policyId: policyId, message: "Policy draft updated" });
+
+//     } catch (err) {
+//         await client.query('ROLLBACK');
+//         console.error("Error updating policy draft:", err);
+//         res.status(500).json({ error: err.message });
+//     } finally {
+//         client.release();
+//     }
+// });
+
+/*
+ * [STEP 1 UPDATE] Update existing policy draft members
+ * PUT /api/policyUpdate/:policyId
+ */
 app.put('/api/policyUpdate/:policyId', verifyToken, async (req, res) => {
     const { policyId } = req.params;
     const { proposer, dependents, kyc } = req.body;
@@ -237,14 +283,30 @@ app.put('/api/policyUpdate/:policyId', verifyToken, async (req, res) => {
             throw new Error("Invalid policy or policy is no longer a draft.");
         }
 
-        // 2. Clear out the old draft members
-        await client.query(`DELETE FROM POLICY_MEMBERS WHERE policy_id = $1`, [policyId]);
-
-        // 3. Insert the newly updated members
         const allMembers = [proposer, ...dependents];
+        const incomingIds = allMembers.map(m => m.id); // e.g., ['proposer', 'dep-1']
+
+        // 2. CLEANUP: Delete ONLY the members the user removed on the frontend
+        // We dynamically build the $2, $3, $4 placeholders for the NOT IN clause
+        const placeholders = incomingIds.map((_, i) => `$${i + 2}`).join(',');
+        await client.query(`
+            DELETE FROM POLICY_MEMBERS 
+            WHERE policy_id = $1 AND client_side_id NOT IN (${placeholders})
+        `, [policyId, ...incomingIds]);
+
+        // 3. UPSERT: Update existing members (keeps member_id same) or Insert new ones
         for (const m of allMembers) {
-            const memberSql = `INSERT INTO POLICY_MEMBERS (policy_id, client_side_id, name, dob, age, relationship, kyc_status)
-                               VALUES ($1, $2, $3, $4, $5, $6, $7)`;
+            const memberSql = `
+                INSERT INTO POLICY_MEMBERS (policy_id, client_side_id, name, dob, age, relationship, kyc_status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (policy_id, client_side_id) 
+                DO UPDATE SET 
+                    name = EXCLUDED.name,
+                    dob = EXCLUDED.dob,
+                    age = EXCLUDED.age,
+                    relationship = EXCLUDED.relationship,
+                    kyc_status = EXCLUDED.kyc_status
+            `;
             await client.query(memberSql, [policyId, m.id, m.name, m.dob, m.age, m.relationship, kyc[m.id]]);
         }
 
@@ -567,7 +629,7 @@ app.get('/api/policy/:policyId/pdf', verifyToken, async (req, res) => {
         const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
         
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=SecureLife_Policy_${policy.policy_number || policyId}.pdf`);
+        res.setHeader('Content-Disposition', `attachment; filename=SecureLife_${policy.policy_number || policyId}.pdf`);
         res.send(pdfBuffer);
 
     } catch (err) {
