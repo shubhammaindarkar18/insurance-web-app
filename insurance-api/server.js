@@ -12,6 +12,10 @@ const { Pool, types } = require('pg');
 const cors = require('cors');
 const bcrypt = require('bcryptjs'); 
 const jwt = require('jsonwebtoken');
+const { jsPDF } = require("jspdf");
+const autoTableModule = require("jspdf-autotable");
+// Safely unwrap the module regardless of how npm installed it
+const autoTable = autoTableModule.default || autoTableModule;
 
 types.setTypeParser(1700, function(val) {
     return parseFloat(val);
@@ -336,6 +340,11 @@ app.post('/api/policy/:policyId/purchase', verifyToken, async (req, res) => {
     const { policyId } = req.params;
     const { allKycDone, policyStartDate } = req.body; 
 
+    // ADD THIS LINE: Backend safety net
+    if (!policyStartDate || policyStartDate === "") {
+        policyStartDate = new Date().toISOString().split('T')[0]; 
+    }
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -458,6 +467,114 @@ app.post('/api/claims', verifyToken, async (req, res) => {
     } catch (err) {
         console.error("Error submitting claim:", err);
         res.status(500).json({ error: err.message });
+    }
+});
+
+/*
+ * [DOWNLOAD] Generate and download Policy PDF
+ * GET /api/policy/:policyId/pdf
+ */
+app.get('/api/policy/:policyId/pdf', verifyToken, async (req, res) => {
+    const { policyId } = req.params;
+    const userId = req.user.id;
+    const client = await pool.connect();
+
+    try {
+        // 1. Fetch the policy and member data securely
+        const policyRes = await client.query(`SELECT * FROM POLICIES WHERE policy_id = $1 AND user_id = $2`, [policyId, userId]);
+        if (policyRes.rows.length === 0) throw new Error("Policy not found");
+        const policy = policyRes.rows[0];
+
+        const membersRes = await client.query(`SELECT * FROM POLICY_MEMBERS WHERE policy_id = $1`, [policyId]);
+        policy.members = membersRes.rows;
+
+        // 2. Initialize PDF
+        const doc = new jsPDF();
+        
+        // --- 1. CORPORATE LETTERHEAD ---
+        doc.setFillColor(37, 99, 235); 
+        doc.rect(0, 0, 210, 35, 'F');
+        doc.setTextColor(255, 255, 255); 
+        doc.setFontSize(22);
+        doc.setFont("helvetica", "bold");
+        doc.text("SecureLife Insurance", 14, 22);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text("Policy Schedule & Certificate", 14, 28);
+        
+        // --- 2. POLICY DETAILS ---
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Plan Summary", 14, 50);
+        
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Policy Number:`, 14, 60);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${policy.policy_number || 'Draft'}`, 45, 60);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(`Status:`, 14, 68);
+        doc.text(`${policy.status}`, 45, 68);
+        
+        doc.text(`Start Date:`, 14, 76);
+        const startDate = policy.policy_start_date ? new Date(policy.policy_start_date).toLocaleDateString() : 'N/A';
+        doc.text(`${startDate}`, 45, 76);
+        
+        doc.text(`Product:`, 110, 60);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${policy.product_name || 'N/A'}`, 145, 60);
+        
+        doc.setFont("helvetica", "normal");
+        doc.text(`Insurer:`, 110, 68);
+        doc.text(`${policy.insurer_name || 'N/A'}`, 145, 68);
+        
+        doc.text(`Total Premium:`, 110, 76);
+        const premium = policy.premium ? parseFloat(policy.premium).toFixed(2) : '0.00';
+        doc.text(`$${premium}`, 145, 76);
+        
+        // --- 3. COVERED MEMBERS TABLE ---
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text("Covered Members", 14, 95);
+        
+        const tableData = policy.members.map(m => [
+            m.name,
+            m.relationship,
+            m.age ? m.age.toString() : 'N/A',
+            m.kyc_status
+        ]);
+        
+        autoTable(doc, {
+            startY: 100,
+            head: [['Full Name', 'Relationship', 'Age', 'KYC Status']],
+            body: tableData,
+            theme: 'striped',
+            headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] },
+            styles: { font: "helvetica", fontSize: 10 },
+            alternateRowStyles: { fillColor: [245, 247, 250] }
+        });
+        
+        // --- 4. FOOTER ---
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(9);
+        doc.setTextColor(150, 150, 150);
+        doc.text("This is an electronically generated document and does not require a physical signature.", 14, pageHeight - 15);
+        doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, pageHeight - 10);
+        
+        // 3. Output as Buffer and send to client
+        const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=SecureLife_Policy_${policy.policy_number || policyId}.pdf`);
+        res.send(pdfBuffer);
+
+    } catch (err) {
+        console.error("PDF Generation Error:", err);
+        res.status(500).json({ error: "Failed to generate PDF document" });
+    } finally {
+        client.release();
     }
 });
 

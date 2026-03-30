@@ -1,7 +1,7 @@
 // src/app.js
 import { jsPDF } from "jspdf";
 import autoTable from 'jspdf-autotable';
-import { apiFetch, auth } from './api.js';
+import { apiFetch, apiDownload,auth } from './api.js';
 
 
 // --- Global State ---
@@ -503,13 +503,16 @@ async function submitSingleKycUpload(clientSideId) {
 // --- Step 5: Purchase ---
 async function submitPurchase() {
     const allKycDone = Object.values(appState.kyc).every(status => status === 'Confirmed' || status === 'Exempt');
+
+    const safeStartDate = appState.plan.policyStartDate || new Date().toISOString().split('T')[0];
     
     try {
         const result = await fetchWithUI(`/policy/${appState.policyId}/purchase`, {
             method: 'POST',
             body: { 
                 allKycDone,
-                policyStartDate: appState.plan.policyStartDate 
+                //policyStartDate: appState.plan.policyStartDate 
+                policyStartDate: safeStartDate
             }
         });
 
@@ -1032,93 +1035,163 @@ async function updatePolicyStatus(policyId, status) {
 }
 
 // --- PDF Generation Logic ---
-function downloadPolicyPDF() {
-    const policy = appState.policy;
-    if (!policy) return;
+// function downloadPolicyPDF() {
+//     const policy = appState.policy;
+//     if (!policy) return;
 
-    // Create a new PDF document (A4 size)
-    const doc = new jsPDF();
+//     // Create a new PDF document (A4 size)
+//     const doc = new jsPDF();
     
-    // --- 1. CORPORATE LETTERHEAD ---
-    // Blue background band
-    doc.setFillColor(37, 99, 235); // Matches Tailwind blue-600
-    doc.rect(0, 0, 210, 35, 'F');
+//     // --- 1. CORPORATE LETTERHEAD ---
+//     // Blue background band
+//     doc.setFillColor(37, 99, 235); // Matches Tailwind blue-600
+//     doc.rect(0, 0, 210, 35, 'F');
     
-    // SecureLife Name and "Logo" text
-    doc.setTextColor(255, 255, 255); // White text
-    doc.setFontSize(22);
-    doc.setFont("helvetica", "bold");
-    doc.text("SecureLife Insurance", 14, 22);
+//     // SecureLife Name and "Logo" text
+//     doc.setTextColor(255, 255, 255); // White text
+//     doc.setFontSize(22);
+//     doc.setFont("helvetica", "bold");
+//     doc.text("SecureLife Insurance", 14, 22);
     
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text("Policy Schedule & Certificate", 14, 28);
+//     doc.setFontSize(10);
+//     doc.setFont("helvetica", "normal");
+//     doc.text("Policy Schedule & Certificate", 14, 28);
     
-    // --- 2. POLICY DETAILS ---
-    doc.setTextColor(50, 50, 50);
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("Plan Summary", 14, 50);
+//     // --- 2. POLICY DETAILS ---
+//     doc.setTextColor(50, 50, 50);
+//     doc.setFontSize(14);
+//     doc.setFont("helvetica", "bold");
+//     doc.text("Plan Summary", 14, 50);
     
-    // Left Column
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Policy Number:`, 14, 60);
-    doc.setFont("helvetica", "bold");
-    doc.text(`${policy.POLICY_NUMBER}`, 45, 60);
+//     // Left Column
+//     doc.setFontSize(11);
+//     doc.setFont("helvetica", "normal");
+//     doc.text(`Policy Number:`, 14, 60);
+//     doc.setFont("helvetica", "bold");
+//     doc.text(`${policy.POLICY_NUMBER}`, 45, 60);
     
-    doc.setFont("helvetica", "normal");
-    doc.text(`Status:`, 14, 68);
-    doc.text(`${policy.STATUS}`, 45, 68);
+//     doc.setFont("helvetica", "normal");
+//     doc.text(`Status:`, 14, 68);
+//     doc.text(`${policy.STATUS}`, 45, 68);
     
-    doc.text(`Start Date:`, 14, 76);
-    doc.text(`${new Date(policy.POLICY_START_DATE).toLocaleDateString()}`, 45, 76);
+//     doc.text(`Start Date:`, 14, 76);
+//     doc.text(`${new Date(policy.POLICY_START_DATE).toLocaleDateString()}`, 45, 76);
     
-    // Right Column
-    doc.text(`Product:`, 110, 60);
-    doc.setFont("helvetica", "bold");
-    doc.text(`${policy.PRODUCT_NAME}`, 145, 60);
+//     // Right Column
+//     doc.text(`Product:`, 110, 60);
+//     doc.setFont("helvetica", "bold");
+//     doc.text(`${policy.PRODUCT_NAME}`, 145, 60);
     
-    doc.setFont("helvetica", "normal");
-    doc.text(`Insurer:`, 110, 68);
-    doc.text(`${policy.INSURER_NAME}`, 145, 68);
+//     doc.setFont("helvetica", "normal");
+//     doc.text(`Insurer:`, 110, 68);
+//     doc.text(`${policy.INSURER_NAME}`, 145, 68);
     
-    doc.text(`Total Premium:`, 110, 76);
-    doc.text(`$${policy.PREMIUM.toFixed(2)}`, 145, 76);
+//     doc.text(`Total Premium:`, 110, 76);
+//     doc.text(`$${policy.PREMIUM.toFixed(2)}`, 145, 76);
     
-    // --- 3. COVERED MEMBERS TABLE ---
-    doc.setFontSize(14);
-    doc.setFont("helvetica", "bold");
-    doc.text("Covered Members", 14, 95);
+//     // --- 3. COVERED MEMBERS TABLE ---
+//     doc.setFontSize(14);
+//     doc.setFont("helvetica", "bold");
+//     doc.text("Covered Members", 14, 95);
     
-    // Map the DB members array into rows for the PDF table
-    const tableData = policy.members.map(m => [
-        m.NAME,
-        m.RELATIONSHIP,
-        m.AGE ? m.AGE.toString() : 'N/A',
-        m.KYC_STATUS
-    ]);
+//     // Map the DB members array into rows for the PDF table
+//     const tableData = policy.members.map(m => [
+//         m.NAME,
+//         m.RELATIONSHIP,
+//         m.AGE ? m.AGE.toString() : 'N/A',
+//         m.KYC_STATUS
+//     ]);
     
-    // Generate the table
-   autoTable(doc, {
-        startY: 100,
-        head: [['Full Name', 'Relationship', 'Age', 'KYC Status']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] },
-        styles: { font: "helvetica", fontSize: 10 },
-        alternateRowStyles: { fillColor: [245, 247, 250] }
-    });
+//     // Generate the table
+//    autoTable(doc, {
+//         startY: 100,
+//         head: [['Full Name', 'Relationship', 'Age', 'KYC Status']],
+//         body: tableData,
+//         theme: 'striped',
+//         headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] },
+//         styles: { font: "helvetica", fontSize: 10 },
+//         alternateRowStyles: { fillColor: [245, 247, 250] }
+//     });
     
-    // --- 4. FOOTER ---
-    const pageHeight = doc.internal.pageSize.height;
-    doc.setFontSize(9);
-    doc.setTextColor(150, 150, 150);
-    doc.text("This is an electronically generated document and does not require a physical signature.", 14, pageHeight - 15);
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, pageHeight - 10);
+//     // --- 4. FOOTER ---
+//     const pageHeight = doc.internal.pageSize.height;
+//     doc.setFontSize(9);
+//     doc.setTextColor(150, 150, 150);
+//     doc.text("This is an electronically generated document and does not require a physical signature.", 14, pageHeight - 15);
+//     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, pageHeight - 10);
     
-    // Trigger the actual file download in the browser
-    doc.save(`SecureLife_Policy_${policy.POLICY_NUMBER}.pdf`);
+//     // Trigger the actual file download in the browser
+//     doc.save(`SecureLife_Policy_${policy.POLICY_NUMBER}.pdf`);
+// }
+
+// async function downloadPolicyPDF() {
+//     const policyId = appState.policy.POLICY_ID; 
+    
+//     try {
+//         // 1. Dynamically grab your API URL from the Vite environment
+//         // This will be localhost:3000 locally, and your Render URL in production
+//         const baseUrl = import.meta.env.VITE_API_URL; 
+//         const backendUrl = `${baseUrl}/policy/${policyId}/pdf`; 
+        
+//         const response = await fetch(backendUrl, {
+//             method: 'GET',
+//             headers: { 
+//                 'Authorization': `Bearer ${auth.token || localStorage.getItem('token')}` 
+//             } 
+//         });
+
+//         if (!response.ok) throw new Error("Failed to generate PDF");
+
+//         // 2. Safely convert the raw binary data into a strict PDF Blob
+//         const arrayBuffer = await response.arrayBuffer();
+//         const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+        
+//         // 3. Trigger the download
+//         const url = window.URL.createObjectURL(blob);
+//         const a = document.createElement('a');
+//         a.href = url;
+//         a.download = `SecureLife_Policy_${policyId}.pdf`;
+//         document.body.appendChild(a);
+//         a.click();
+        
+//         // Clean up
+//         a.remove();
+//         window.URL.revokeObjectURL(url);
+        
+//     } catch (err) {
+//         console.error("Download error:", err);
+//         alert("Failed to download policy document.");
+//     }
+// }
+
+
+
+async function downloadPolicyPDF() {
+    const policy = appState.policy;
+    if (!policy || !policy.POLICY_ID) return;
+    
+    try {
+        // Use your new clean wrapper!
+        const arrayBuffer = await apiDownload(`/policy/${policy.POLICY_ID}/pdf`);
+        
+        // Convert the binary to a PDF
+        const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+        
+        // Trigger the download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SecureLife_${policy.POLICY_NUMBER || policy.POLICY_ID}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        
+    } catch (err) {
+        console.error("Download error:", err);
+        alert("Failed to download policy document. Please try again later.");
+    }
 }
 
 // --- GLOBAL BINDINGS ---
